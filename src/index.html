@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TClock</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- 3D açılış için yerele gömülü Three.js (import map) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../assets/vendor/three/three.module.js",
+      "three/addons/": "../assets/vendor/three/addons/"
+    }
+  }
+  </script>
+</head>
+<body class="mode-clock timer-stopped">
+  <!-- Açılış animasyonu (3D splash — canvas JS ile eklenir) -->
+  <div class="splash" id="splash"></div>
+
+  <!-- Titlebar -->
+  <div class="titlebar" id="titlebar">
+    <span class="app-title">TClock</span>
+    <div class="window-controls">
+      <button class="btn-minimize" id="btnMinimize" title="Küçült">－</button>
+      <button class="btn-maximize" id="btnMaximize" title="Büyüt">⬜</button>
+      <button class="btn-close"    id="btnClose"    title="Kapat">✕</button>
+    </div>
+  </div>
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="clock">Saat</button>
+    <button class="mode-tab" data-mode="stopwatch">Krono</button>
+    <button class="mode-tab" data-mode="timer">Sayaç</button>
+    <button class="mode-tab" data-mode="pomodoro">Pomodoro</button>
+    <button class="mode-tab settings-tab" id="btnSettings">Ayarlar</button>
+  </div>
+
+  <!-- Flip cards -->
+  <div class="clock-container" id="clockContainer">
+    <div class="flip-group" id="groupHours">
+      <div class="flip-card" id="hours-tens">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+      <div class="flip-card" id="hours-ones">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+    </div>
+
+    <div class="separator"><span class="dot"></span><span class="dot"></span></div>
+
+    <div class="flip-group">
+      <div class="flip-card" id="minutes-tens">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+      <div class="flip-card" id="minutes-ones">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+    </div>
+
+    <div class="separator" id="sepSeconds"><span class="dot"></span><span class="dot"></span></div>
+
+    <div class="flip-group" id="groupSeconds">
+      <div class="flip-card" id="seconds-tens">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+      <div class="flip-card" id="seconds-ones">
+        <div class="card-top"><span>0</span></div>
+        <div class="card-bottom"><span>0</span></div>
+        <div class="flip-top"><span>0</span></div>
+        <div class="flip-bottom"><span>0</span></div>
+      </div>
+    </div>
+
+    <div class="ampm" id="ampm"></div>
+  </div>
+
+  <!-- Tarih gösterimi (flip kartların altında) -->
+  <div class="date-display" id="dateDisplay"></div>
+
+  <!-- Pomodoro faz etiketi -->
+  <div class="pomodoro-label" id="pomodoroLabel">
+    <span id="pomoPhase">Calisma</span>
+    <span class="pomo-sep">·</span>
+    <span id="pomoRound">Tur 1/4</span>
+  </div>
+
+  <!-- Lap listesi (kronometre) -->
+  <div class="lap-list" id="lapList"></div>
+
+  <!-- Timer time input -->
+  <div class="timer-input" id="timerInput">
+    <div class="timer-input-group">
+      <input type="number" id="timerH" min="0" max="23" value="0" />
+      <span>sa</span>
+    </div>
+    <span class="timer-sep">:</span>
+    <div class="timer-input-group">
+      <input type="number" id="timerM" min="0" max="59" value="5" />
+      <span>dk</span>
+    </div>
+    <span class="timer-sep">:</span>
+    <div class="timer-input-group">
+      <input type="number" id="timerS" min="0" max="59" value="0" />
+      <span>sn</span>
+    </div>
+  </div>
+
+  <!-- Controls (stopwatch/timer/pomodoro) -->
+  <div class="controls" id="controls">
+    <button class="ctrl-btn start-btn" id="btnStartStop">Baslat</button>
+    <button class="ctrl-btn lap-btn"   id="btnLap" style="display:none">Tur</button>
+    <button class="ctrl-btn reset-btn" id="btnReset">Sifirla</button>
+  </div>
+
+  <!-- Settings bar (bağlamsal alt panel) -->
+  <div class="settings-bar" id="settingsBar">
+
+    <!-- SAAT FORMATI — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Saat Formatı</span>
+      <div class="toggle-group">
+        <button class="toggle-opt active" data-fmt="24" id="fmt24">24 Sa</button>
+        <button class="toggle-opt" data-fmt="12" id="fmt12">12 Sa</button>
+      </div>
+    </div>
+
+    <!-- SANİYELER — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Saniyeler</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkSeconds" checked />
+        <label class="switch" for="chkSeconds"></label>
+      </div>
+    </div>
+
+    <!-- TARİH — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Tarih</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkDate" checked />
+        <label class="switch" for="chkDate"></label>
+      </div>
+    </div>
+
+    <!-- SAAT DİLİMİ — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Saat Dilimi</span>
+      <select id="selTimezone" class="settings-select">
+        <option value="local">Yerel</option>
+        <option value="UTC">UTC</option>
+        <option value="Europe/Istanbul" selected>İstanbul</option>
+        <option value="Europe/London">Londra</option>
+        <option value="Europe/Berlin">Berlin</option>
+        <option value="Europe/Paris">Paris</option>
+        <option value="America/New_York">New York</option>
+        <option value="America/Chicago">Chicago</option>
+        <option value="America/Los_Angeles">Los Angeles</option>
+        <option value="Asia/Dubai">Dubai</option>
+        <option value="Asia/Kolkata">Hindistan</option>
+        <option value="Asia/Tokyo">Tokyo</option>
+        <option value="Asia/Shanghai">Şangay</option>
+        <option value="Australia/Sydney">Sidney</option>
+      </select>
+    </div>
+
+    <!-- TİK SESİ — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Tik Sesi</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkTick" />
+        <label class="switch" for="chkTick"></label>
+      </div>
+    </div>
+
+    <!-- EKRAN KORUYUCU — clock -->
+    <div class="set-card" data-modes="clock">
+      <span class="set-label">Ekran Koruyucu</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkDrift" />
+        <label class="switch" for="chkDrift"></label>
+      </div>
+    </div>
+
+    <!-- BİTİŞ SESİ — timer, pomodoro -->
+    <div class="set-card" data-modes="timer pomodoro">
+      <span class="set-label">Bitiş Sesi</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkAlarmSound" checked />
+        <label class="switch" for="chkAlarmSound"></label>
+      </div>
+    </div>
+
+    <!-- YUMUŞAK GEÇİŞ — timer, pomodoro -->
+    <div class="set-card" data-modes="timer pomodoro">
+      <span class="set-label">Yumuşak Geçiş</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkFadeAlarm" checked />
+        <label class="switch" for="chkFadeAlarm"></label>
+      </div>
+    </div>
+
+    <!-- SES SEVİYESİ — timer, pomodoro -->
+    <div class="set-card" data-modes="timer pomodoro">
+      <span class="set-label">Ses Seviyesi</span>
+      <div class="range-wrap">
+        <input type="range" id="rngVolume" min="0" max="1" step="0.05" value="0.6" />
+      </div>
+    </div>
+
+    <!-- ÇALIŞMA SÜRESİ — pomodoro -->
+    <div class="set-card" data-modes="pomodoro">
+      <span class="set-label">Çalışma (dk)</span>
+      <input type="number" id="inpPomoWork" class="pomo-inp" min="1" max="120" value="25" />
+    </div>
+
+    <!-- KISA MOLA — pomodoro -->
+    <div class="set-card" data-modes="pomodoro">
+      <span class="set-label">Kısa Mola (dk)</span>
+      <input type="number" id="inpPomoShort" class="pomo-inp" min="1" max="60" value="5" />
+    </div>
+
+    <!-- UZUN MOLA — pomodoro -->
+    <div class="set-card" data-modes="pomodoro">
+      <span class="set-label">Uzun Mola (dk)</span>
+      <input type="number" id="inpPomoLong" class="pomo-inp" min="1" max="60" value="15" />
+    </div>
+
+    <!-- DÖNGÜ SAYISI — pomodoro -->
+    <div class="set-card" data-modes="pomodoro">
+      <span class="set-label">Döngü</span>
+      <input type="number" id="inpPomoCycles" class="pomo-inp" min="1" max="12" value="4" />
+    </div>
+
+    <!-- TEMA — tüm modlar -->
+    <div class="set-card" data-modes="clock stopwatch timer pomodoro">
+      <span class="set-label">Tema</span>
+      <select id="selTheme" class="settings-select">
+        <option value="classic">Klasik</option>
+        <option value="day">Gündüz</option>
+        <option value="amber">Amber</option>
+        <option value="neon">Neon</option>
+        <option value="mono">Mono</option>
+      </select>
+    </div>
+
+    <!-- SAYDAMLIK — tüm modlar -->
+    <div class="set-card" data-modes="clock stopwatch timer pomodoro">
+      <span class="set-label">Saydamlık</span>
+      <div class="range-wrap">
+        <input type="range" id="rngOpacity" min="0.3" max="1" step="0.05" value="1" />
+      </div>
+    </div>
+
+    <!-- HER ZAMAN ÜSTTE — tüm modlar -->
+    <div class="set-card" data-modes="clock stopwatch timer pomodoro">
+      <span class="set-label">Üstte Kal</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkAlwaysOnTop" checked />
+        <label class="switch" for="chkAlwaysOnTop"></label>
+      </div>
+    </div>
+
+    <!-- KISAYOLLAR — tüm modlar -->
+    <div class="set-card" data-modes="clock stopwatch timer pomodoro">
+      <span class="set-label">Kısayollar</span>
+      <div class="switch-wrap">
+        <input type="checkbox" id="chkShortcuts" checked />
+        <label class="switch" for="chkShortcuts"></label>
+      </div>
+    </div>
+
+    <!-- VARSAYILANLAR — tüm modlar -->
+    <div class="set-card set-card--reset" data-modes="clock stopwatch timer pomodoro">
+      <button id="btnResetDefaults" class="reset-defaults-btn">Varsayılanlar</button>
+    </div>
+
+  </div>
+
+  <script type="module" src="splash3d.js"></script>
+  <script src="clock.js"></script>
+</body>
+</html>
